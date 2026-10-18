@@ -1,5 +1,5 @@
 services:
-  agy:
+  antigravity:
     image: ghcr.io/kezziny/antigravity-docker:latest
     build:
       context: .
