@@ -7,13 +7,13 @@
 
 A lightweight, multi-architecture Docker container configured to run the official **Google Antigravity CLI** (`agy`) out of the box in **Remote Connection mode** (`agy remote-control serve`).
 
-This enables you to run your Antigravity agent daemon inside Docker (on a local machine, home server, NAS, or remote VPS) and control it remotely from any browser or mobile device via [https://antigravity.google.com](https://antigravity.google.com).
+Run your Antigravity agent daemon inside Docker (local workstation, home server, NAS, or remote VPS) and control it remotely from any browser or mobile device via [https://antigravity.google.com](https://antigravity.google.com).
 
 ---
 
 ## Key Features
 
-- **Automatic Remote Connection Mode**: Starts as a remote-control daemon out of the box. No inbound port forwarding or firewall adjustments required (uses secure outbound connection to Google).
+- **Out-of-the-Box Remote Control**: Starts as an agent daemon automatically. Connects securely outbound to Google—no open inbound ports or port forwarding required.
 - **Multi-Architecture**: Native builds for `linux/amd64` (Intel/AMD) and `linux/arm64` (Apple Silicon / ARM).
 - **Secure & Stateless**: Zero credentials, tokens, or personal identifiers baked into the image.
 - **Non-Root Runtime**: Runs as `antigravity` (UID `1000`, GID `1000`) with passwordless `sudo` access.
@@ -22,29 +22,76 @@ This enables you to run your Antigravity agent daemon inside Docker (on a local 
 
 ---
 
-## Quick Start (Primary Usage)
+## Quick Start with Docker Compose
 
-### 1. Start with Docker Compose
+No need to clone this repository. Create a `docker-compose.yml` anywhere on your system:
 
-Launch the agent in the background:
+```yaml
+services:
+  antigravity:
+    image: ghcr.io/kezziny/antigravity-docker:latest
+    container_name: antigravity-cli
+    hostname: antigravity-docker   # Name displayed in https://antigravity.google.com
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+    # --- Volumes Configuration ---
+    volumes:
+      # [MANDATORY] Workspace directory for the agent to inspect and edit code
+      - ./:/workspace
+
+      # [MANDATORY FOR PERSISTENCE] Persists Google auth session, skills, and settings
+      - ${HOME}/.gemini:/home/antigravity/.gemini
+
+      # [OPTIONAL] Share host Git config with the container
+      # - ${HOME}/.gitconfig:/home/antigravity/.gitconfig:ro
+
+      # [OPTIONAL] Share host SSH keys (e.g. for pushing code via SSH)
+      # - ${HOME}/.ssh:/home/antigravity/.ssh:ro
+
+    # --- Ports Configuration ---
+    # [DEFAULT] NONE needed! Remote Control uses an OUTBOUND connection to Google.
+    # [OPTIONAL] Forward ports if your agent runs web apps or dev servers you wish to access from host:
+    # ports:
+    #   - "3000:3000"
+    #   - "8080:8080"
+
+    environment:
+      - TERM=xterm-256color
+```
+
+### Configuration Reference
+
+| Field | Type | Description |
+|---|---|---|
+| `image` | **Mandatory** | `ghcr.io/kezziny/antigravity-docker:latest` from GitHub Container Registry. |
+| `volumes` | **Mandatory** | `path/to/code:/workspace`: mounts your project directory. |
+| `volumes` | **Mandatory** | `${HOME}/.gemini:/home/antigravity/.gemini`: persists login session, custom skills, rules, and settings. |
+| `volumes` | *Optional* | `${HOME}/.gitconfig` or `${HOME}/.ssh`: provides git author identity and SSH keys. |
+| `ports` | *Optional* | **None required** for Remote Control. Only map ports if you want to access web services or dev servers started by the agent from your host machine (e.g., `"3000:3000"`). |
+| `hostname` | *Optional* | Sets the instance name shown on the [Antigravity Web Dashboard](https://antigravity.google.com). |
+
+### Running the Daemon
 
 ```bash
+# 1. Start the daemon in the background
 docker compose up -d
-```
 
-Check the startup status and logs:
+# 2. View logs & check authentication status
+docker compose logs -f antigravity
 
-```bash
-docker compose logs -f agy
-```
-
-Stop the daemon:
-
-```bash
+# 3. Stop the daemon
 docker compose down
 ```
 
-### 2. Start with Docker Run
+Once running, access your agent at **[https://antigravity.google.com](https://antigravity.google.com)** under the instance name `antigravity-docker`.
+
+---
+
+## Alternative: Docker Run
+
+Run directly without Docker Compose:
 
 ```bash
 docker run -d \
@@ -56,8 +103,6 @@ docker run -d \
   ghcr.io/kezziny/antigravity-docker
 ```
 
-Once running, access your agent at **[https://antigravity.google.com](https://antigravity.google.com)** under the instance name `antigravity-docker`.
-
 ---
 
 ## How Authentication Works
@@ -65,60 +110,60 @@ Once running, access your agent at **[https://antigravity.google.com](https://an
 Antigravity stores authentication tokens, custom skills, and configuration in `~/.gemini/antigravity-cli`.
 
 ### Option A: Reuse Existing Host Authentication (Recommended)
-If you have already authenticated `agy` on your host machine, mounting `-v "$HOME/.gemini":/home/antigravity/.gemini` instantly authenticates the container upon launch. No extra login steps needed.
+If you already authenticated `agy` on your host machine, mounting `-v "$HOME/.gemini":/home/antigravity/.gemini` automatically authenticates the container upon launch.
 
 ### Option B: Authenticate After Starting in Remote Connection Mode
-If you start the container fresh without pre-existing credentials:
+If starting fresh on a headless machine or VPS without existing credentials:
 
-1. **Start the container in remote mode:**
+1. **Start the container:**
    ```bash
    docker compose up -d
    ```
-2. **View the container logs:**
+2. **View the startup logs:**
    ```bash
-   docker compose logs -f agy
-   # Or with docker run:
-   docker logs -f antigravity-cli
+   docker compose logs -f antigravity
    ```
 3. **Follow the verification link:**
-   In headless/remote mode, `agy` detects that a desktop browser cannot be launched directly and prints an authorization URL in the logs:
+   In headless/remote mode, `agy` detects that a desktop browser cannot be opened and prints an authorization link:
    ```text
    Please visit this URL to authenticate:
    https://accounts.google.com/o/oauth2/auth?...
    ```
-4. **Sign in on your computer or phone:**
-   Open the link in your browser and authorize access with your Google account.
-5. **Session established:**
-   The daemon completes the handshake and becomes active. Because `${HOME}/.gemini` is mounted as a volume, your credentials remain saved for all future container restarts.
+4. **Sign in:**
+   Open the URL in any browser (laptop, phone) and authorize your Google account.
+5. **Session connected:**
+   The daemon completes authentication, saves tokens into the mounted `${HOME}/.gemini` directory, and registers on [https://antigravity.google.com](https://antigravity.google.com). Credentials stay cached for future restarts.
 
 ### Option C: One-Time Interactive Terminal Login
-Alternatively, run an interactive sign-in turn before leaving the daemon in the background:
+Sign in interactively before leaving the daemon running:
 
 ```bash
-docker compose run --rm agy agy
+docker compose run --rm antigravity agy
 ```
-Follow the interactive prompts to sign in, then start your background daemon with `docker compose up -d`.
+Follow prompts to log in, then run `docker compose up -d`.
 
 ---
 
 ## Direct CLI Usage & Overrides
 
-Even though the default mode is the remote daemon, you can execute standard `agy` CLI commands or open a shell anytime:
+Run CLI commands or open a container shell anytime:
 
 ### Single Prompt (Batch Mode)
 ```bash
-docker compose run --rm agy agy -p "Audit this repository for security risks"
+docker compose run --rm antigravity agy -p "Audit this repository for security risks"
 ```
 
 ### Interactive CLI Session
 ```bash
-docker compose run --rm agy agy
+docker compose run --rm antigravity agy
 ```
 
 ### Open Container Shell
 ```bash
-docker compose run --rm agy bash
-# Or attach to the already running background container:
+# In a temporary container:
+docker compose run --rm antigravity bash
+
+# Or attach to the running background daemon:
 docker exec -it antigravity-cli bash
 ```
 
@@ -137,7 +182,7 @@ agy-docker() {
 }
 ```
 
-Now you can run:
+Usage:
 
 ```bash
 agy-docker --version
@@ -146,37 +191,9 @@ agy-docker -p "Analyze git log"
 
 ---
 
-## Configuration Reference (`docker-compose.yml`)
-
-```yaml
-services:
-  agy:
-    image: ghcr.io/kezziny/antigravity-docker:latest
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: antigravity-cli
-    hostname: antigravity-docker
-    restart: unless-stopped
-    stdin_open: true
-    tty: true
-    volumes:
-      - ./:/workspace
-      - ${HOME}/.gemini:/home/antigravity/.gemini
-    environment:
-      - TERM=xterm-256color
-```
-
-- **`hostname`**: Determines the instance name displayed on [https://antigravity.google.com](https://antigravity.google.com).
-- **`volumes`**:
-  - `./:/workspace`: Your project code.
-  - `${HOME}/.gemini:/home/antigravity/.gemini`: Preserves authentication and customizations.
-
----
-
 ## Building Locally
 
-To build the image locally:
+To build the image locally from source:
 
 ```bash
 docker build -t antigravity-docker:latest .
