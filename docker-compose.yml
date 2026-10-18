@@ -1,0 +1,14 @@
+services:
+  agy:
+    image: ghcr.io/kezziny/antigravity-docker:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: antigravity-cli
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./:/workspace
+      - ${HOME}/.gemini:/home/antigravity/.gemini
+    environment:
+      - TERM=xterm-256color
