@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -e
 
-# If no arguments are provided, launch agy directly
+# If no arguments are provided, launch automatically in remote connection mode
 if [ "$#" -eq 0 ]; then
-    exec agy
+    exec agy remote-control serve
 fi
 
 # If first argument starts with a dash (e.g. -p, --version, --help), pass to agy

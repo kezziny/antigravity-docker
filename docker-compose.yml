@@ -5,6 +5,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: antigravity-cli
+    hostname: antigravity-docker
+    restart: unless-stopped
     stdin_open: true
     tty: true
     volumes:
