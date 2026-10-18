@@ -48,4 +48,4 @@ ENV USER="${USERNAME}"
 ENV PATH="/home/${USERNAME}/.local/bin:/usr/local/bin:${PATH}"
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-CMD ["agy"]
+CMD ["agy", "remote-control", "serve"]
