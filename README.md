@@ -112,35 +112,26 @@ Antigravity stores authentication tokens, custom skills, and configuration in `~
 ### Option A: Reuse Existing Host Authentication (Recommended)
 If you already authenticated `agy` on your host machine, mounting `-v "$HOME/.gemini":/home/antigravity/.gemini` automatically authenticates the container upon launch.
 
-### Option B: Authenticate After Starting in Remote Connection Mode
-If starting fresh on a headless machine or VPS without existing credentials:
+### Option B: Automatic Sign-In via Container Logs (Docker Managers, Portainer, NAS)
+If starting fresh on a headless machine or via a Docker management UI (Portainer, Komodo, Synology, TrueNAS) without existing host credentials:
 
-1. **Start the container:**
-   ```bash
-   docker compose up -d
-   ```
-2. **View the startup logs:**
-   ```bash
-   docker compose logs -f antigravity
-   ```
-3. **Follow the verification link:**
-   In headless/remote mode, `agy` detects that a desktop browser cannot be opened and prints an authorization link:
+1. **Start the container normally** via your Docker manager or Compose (`docker compose up -d`).
+2. **Open the container logs** in your Docker manager (or `docker compose logs -f antigravity`).
+3. If the daemon detects you are not signed in yet, it automatically boots into interactive sign-in mode and prints:
    ```text
+   ==========================================================================
+    Daemon not signed in. Launching Antigravity CLI to authenticate...
+    Check container logs for the sign-in URL or connect via container console.
+   ==========================================================================
+
    Please visit this URL to authenticate:
    https://accounts.google.com/o/oauth2/auth?...
    ```
-4. **Sign in:**
-   Open the URL in any browser (laptop, phone) and authorize your Google account.
-5. **Session connected:**
-   The daemon completes authentication, saves tokens into the mounted `${HOME}/.gemini` directory, and registers on [https://antigravity.google.com](https://antigravity.google.com). Credentials stay cached for future restarts.
+4. **Click or copy the URL** to your browser, sign in with your Google account, and grant authorization.
+5. The container completes authentication, persists credentials to your mounted `${HOME}/.gemini` volume, and connects to [https://antigravity.google.com](https://antigravity.google.com). Future container restarts will immediately run in background daemon mode.
 
-### Option C: One-Time Interactive Terminal Login
-Sign in interactively before leaving the daemon running:
-
-```bash
-docker compose run --rm antigravity agy
-```
-Follow prompts to log in, then run `docker compose up -d`.
+> [!TIP]
+> If your Docker manager supports an interactive terminal/console (e.g. Portainer's **Console** button), you can also attach directly to the running container to interact with the CLI during authentication.
 
 ---
 
